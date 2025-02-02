@@ -1,6 +1,8 @@
 import ipinfo
 import dns.resolver
 import tldextract
+import time
+
 
 def get_ip_geolocation(ip, handler):
     try:
@@ -55,3 +57,6 @@ def get_dns_records_with_geolocation(url, api_key):
         records['MX'] = {'MailServers': [], 'IPs': [], 'Geolocations': []}
 
     return records
+
+if __name__ == "__main__":
+    pass

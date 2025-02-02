@@ -1,17 +1,33 @@
+from pathlib import Path
 import re
+import json
+import time
 from urllib.parse import urlparse, unquote
 from math import log2
 from typing import Dict
 from collections import Counter
 
-def get_url_metadata(url: str) -> Dict:
+def entropy(url):
+    char_frequency = {}
+    entropy = 0
+    total_chars = len(url)
+
+    for char in url: 
+        char_frequency[char] = char_frequency.get(char, 0) + 1
+    
+    for count in char_frequency.values():
+        prob = count / total_chars
+        entropy -= prob * log2
+
+    return entropy
+
+def process_url(url):
     metadata = {}
-
+    
+    # Basic URL cleaning
+    url = url.strip().lower()
+    parsed = urlparse(url)
     try:
-        # Basic URL cleaning
-        url = url.strip().lower()
-        parsed = urlparse(url)
-
         # Basic Length Features
         metadata['url_length'] = len(url)
         metadata['hostname_length'] = len(parsed.netloc)
@@ -42,29 +58,13 @@ def get_url_metadata(url: str) -> Dict:
         metadata['has_fragment'] = bool(parsed.fragment)
         metadata['has_hex_chars'] = bool(re.search(r'%[0-9a-fA-F]{2}', url))
         metadata['has_www'] = parsed.netloc.startswith('www.')
-
-        if url:
-            # Character frequency ratios
-            total_chars = len(url)
-            metadata['digit_ratio'] = metadata['num_digits'] / total_chars
-            metadata['letter_ratio'] = metadata['num_letters'] / total_chars
-            metadata['special_char_ratio'] = metadata['num_special_chars'] / total_chars
-
-            # Entropy calculation
-            char_freq = {}
-            for char in url:
-                char_freq[char] = char_freq.get(char, 0) + 1
-            entropy = 0
-            for count in char_freq.values():
-                prob = count / total_chars
-                entropy -= prob * log2(prob)
-            metadata['url_entropy'] = round(entropy, 4)
+        metadata['entropy'] = entropy(url)
 
         # Path and Query Analysis
         metadata['path_length'] = len(parsed.path)
         metadata['query_length'] = len(parsed.query)
         metadata['avg_path_length'] = sum(len(p) for p in parsed.path.split('/') if p) / metadata['num_paths'] if metadata['num_paths'] > 0 else 0
-
+    
     except Exception as e:
         # Return default values if parsing fails
         metadata = {k: 0 for k in [
@@ -80,3 +80,57 @@ def get_url_metadata(url: str) -> Dict:
         ]})
 
     return metadata
+
+
+def store_output(urls, output_file, batch_size: int = 1000):
+    output_path = Path(output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    all_metadata = []
+    total_urls = len(urls)
+    
+    print(f"Processing {total_urls} URLs...")
+    start_time = time.time()
+    
+    # Process URLs in batches
+    for i in range(0, total_urls, batch_size):
+        batch = urls[i:i + batch_size]
+        batch_metadata = []
+        
+        # Process each URL in the batch
+        for url in batch:
+            metadata = process_url(url)
+            metadata['url'] = url  # Include original URL in metadata
+            batch_metadata.append(metadata)
+        
+        # Write batch to file
+        with open(output_file, 'a' if i > 0 else 'w', encoding='utf-8') as f:
+            if i == 0:  # Start the JSON array
+                f.write('[\n')
+            
+            # Write each metadata entry
+            for j, metadata in enumerate(batch_metadata):
+                json.dump(metadata, f, indent=2)
+                # Add comma if not last entry in entire dataset
+                if i + j + 1 < total_urls:
+                    f.write(',\n')
+                else:
+                    f.write('\n')
+        
+        # Print progress
+        processed = min(i + batch_size, total_urls)
+        elapsed = time.time() - start_time
+        speed = processed / elapsed if elapsed > 0 else 0
+        print(f"Processed {processed}/{total_urls} URLs ({speed:.2f} URLs/sec)")
+    
+    # Close the JSON array
+    with open(output_file, 'a') as f:
+        f.write(']')
+    
+    print(f"\nDone! Metadata written to {output_file}")
+    print(f"Total time: {time.time() - start_time:.2f} seconds")
+
+
+
+if __name__ == "__main__":
+    pass

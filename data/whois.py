@@ -1,6 +1,6 @@
 import http.client
 import json  # For parsing JSON responses
-
+import time
 import http.client
 import json
 from datetime import datetime
@@ -74,3 +74,5 @@ def whois_lookup(api_key, domain_name):
 
     finally:
         conn.close()
+
+
