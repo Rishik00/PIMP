@@ -1,78 +1,66 @@
-import http.client
-import json  # For parsing JSON responses
-import time
-import http.client
+## Redundant - but can keep
+
+import requests
 import json
 from datetime import datetime
 
-def whois_lookup(api_key, domain_name):
-    conn = http.client.HTTPSConnection("api.whoisfreaks.com")
-    headers = {}
-    data = {}
-    endpoint = f"/v1.0/whois?apiKey={api_key}&whois=live&domainName={domain_name}"
+class WhoisClient:
+    def __init__(self, api_key):
+        self.api_key = api_key
+        self.session = requests.Session()  # Reuse the session for efficiency
+        self.base_url = "https://api.whoisfreaks.com/v1.0/whois"
 
-    try:
-        conn.request("GET", endpoint, headers=headers)
+    def lookup(self, domain_name):
+        params = {
+            "apiKey": self.api_key,
+            "whois": "live",
+            "domainName": domain_name
+        }
 
-        res = conn.getresponse()
-        response_data = res.read()
-        decoded_data = response_data.decode("utf-8")
-
-        # Attempt to parse JSON and print in readable format
         try:
-            response_json = json.loads(decoded_data)
+            response = self.session.get(self.base_url, params=params, timeout=5)
+            response.raise_for_status()  # Raise exception for HTTP errors
+            response_json = response.json()
 
-            # Ensure the keys exist before accessing
-            if 'query_time' in response_json:
-                data['query_time'] = response_json['query_time']
+            data = {
+                "query_time": response_json.get("query_time"),
+                "domain_registered": response_json.get("domain_registered"),
+            }
 
-            if 'domain_registered' in response_json:
-                data['domain_registered'] = response_json['domain_registered']
+            if data["domain_registered"] == "yes":
+                registry_data = response_json.get("registry_data", {})
 
-                if data['domain_registered'] == 'yes' and 'registry_data' in response_json:
-                    registry_data = response_json['registry_data']
+                # Extract registry details
+                data.update({
+                    "domain_name": registry_data.get("domain_name", "N/A"),
+                    "create_date": registry_data.get("create_date", "N/A"),
+                    "update_date": registry_data.get("update_date", "N/A"),
+                    "expiry_date": registry_data.get("expiry_date", "N/A")
+                })
 
-                    # Accessing registry data only if keys exist
-                    data['domain_name'] = registry_data.get('domain_name', 'N/A')
-                    data['create_date'] = registry_data.get('create_date', 'N/A')
-                    data['update_date'] = registry_data.get('update_date', 'N/A')
-                    data['expiry_date'] = registry_data.get('expiry_date', 'N/A')
+                # Calculate days existed if dates are valid
+                try:
+                    if data["create_date"] != "N/A" and data["expiry_date"] != "N/A":
+                        create_date = datetime.strptime(data["create_date"], '%Y-%m-%d')
+                        expiry_date = datetime.strptime(data["expiry_date"], '%Y-%m-%d')
+                        data["days_existed"] = (expiry_date - create_date).days
+                except ValueError:
+                    data["days_existed"] = "Invalid date format"
 
-                    # Calculate the number of days the domain has existed
-                    create_date_str = data['create_date']
-                    expiry_date_str = data['expiry_date']
+                # Extract registrar details
+                registrar = registry_data.get("domain_registrar", {})
+                data.update({
+                    "regname": registrar.get("registrar_name", "N/A"),
+                    "whoisserver": registrar.get("whois_server", "N/A"),
+                    "website_url": registrar.get("website_url", "N/A"),
+                })
 
-
-                    if create_date_str != 'N/A':
-                        try:
-                            create_date = datetime.strptime(create_date_str, '%Y-%m-%d')
-                            expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d')
-
-                            days_existed = (expiry_date - create_date).days
-                            data['days_existed'] = days_existed
-                        except ValueError:
-                            data['days_existed'] = 'Invalid create_date format'
-
-                    if 'domain_registrar' in registry_data:
-                        registrar = registry_data['domain_registrar']
-                        data['regname'] = registrar.get('registrar_name', 'N/A')
-                        data['whoisserver'] = registrar.get('whois_server', 'N/A')
-                        data['website_url'] = registrar.get('website_url', 'N/A')
-
-                    if 'name_servers' in response_json:
-                        if len(response_json['name_servers']) >= 2:
-                            for idx, server in enumerate(response_json['name_servers'][:2]):
-                                data[f"name_server_{idx}"] = server
+                # Extract name servers (limit to 2)
+                name_servers = response_json.get("name_servers", [])
+                for idx, server in enumerate(name_servers[:2]):
+                    data[f"name_server_{idx}"] = server
 
             return data
 
-        except json.JSONDecodeError:
-            print(decoded_data)
-
-    except Exception as e:
-        print("An error occurred during the WHOIS lookup:", str(e))
-
-    finally:
-        conn.close()
-
-
+        except requests.exceptions.RequestException as e:
+            return {"error": str(e)}

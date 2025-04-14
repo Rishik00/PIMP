@@ -1,0 +1,13 @@
+objective: binary
+metrics: 
+  - auc
+  - accuracy
+boosting: gbdt
+learning_rate: 0.01
+num_leaves: 512
+max_depth: 50
+lambda_l1: 0.1  # L1 regularization
+feature_fraction: 0.8  # Feature sampling
+bagging_fraction: 0.8  # Data sampling
+bagging_freq: 5  # Bagging frequency
+verbose: -1
