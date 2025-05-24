@@ -4,9 +4,10 @@ train_config:
   val_size: 10000           # Number of test samples to use
   include_geolocations: true        # Whether to include geolocation features
   batch_size: 200                   # How many URLs you want to be preprocesed at a time?
-  seed: 42                          # Random seed for reproducibility
   dataset_dir: /dummy.csv           # Path to the dataset CSV file
-  log_dir: /log                     # Path to the logdir file
+  source_column: URL
+  target_column: Class
+  num_runs: 3
 
 # Inference configuration
 inference_config:

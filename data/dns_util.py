@@ -20,7 +20,7 @@ async def get_ip_geolocation(ip: str, handler: ipinfo.Handler) -> str:
         return "Unknown"
 
 async def get_dns_records_with_geolocation(url: str, handler: ipinfo.Handler) -> Dict:
-    domain = tldextract.extract(url).registered_domain
+    domain = tldextract.extract(url).top_domain_under_public_suffix
     records = {}
 
     try:
@@ -181,6 +181,7 @@ def batch_process_csv(
     chunk_iterator = pd.read_csv(input_csv_path, chunksize=batch_size)
     chunk_iterator.columns = ['Class', 'URL']
     print(chunk_iterator.columns)
+    
     print(f"Starting batch processing of {input_csv_path}")
 
     start_time = time.time()
@@ -229,11 +230,11 @@ def batch_process_csv(
     print(f"Total URLs processed: {total_processed}")
     print(f"Total time taken: {time.time() - start_time:.2f} seconds")
 
-if __name__ == "__main__":
-    batch_process_csv(
-        input_csv_path="/content/random_10000_set3.csv",
-        output_json_path="url_dns_results_test_set3.json",
-        url_column="URL",
-        batch_size=150,
-        num_threads=6,
-    )
+# if __name__ == "__main__":
+#     batch_process_csv(
+#         input_csv_path="/content/random_10000_set3.csv",
+#         output_json_path="url_dns_results_test_set3.json",
+#         url_column="URL",
+#         batch_size=150,
+#         num_threads=6,
+#     )

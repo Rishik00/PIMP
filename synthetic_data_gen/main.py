@@ -18,11 +18,11 @@ Combine multiple techniques in each variation to make them more deceptive and re
 
 Output Format:  
 original: <original_url>  
-variation1: <synthetic_variation_1>  
-variation2: <synthetic_variation_2>  
+variation1: <synthetic_variation_1>
+variation2: <synthetic_variation_2>
 
 If no valid variations can be generated:  
-original: <original_url>  
+original: <original_url>
 skipped: No valid variations generated.  
 
 Only return the structured output without additional text or explanations."""  
